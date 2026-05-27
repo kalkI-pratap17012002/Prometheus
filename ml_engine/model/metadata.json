@@ -1,0 +1,48 @@
+{
+  "feature_names": [
+    "uri_length",
+    "uri_entropy",
+    "uri_special_char_ratio",
+    "uri_depth",
+    "uri_extension_encoded",
+    "sql_keyword_score",
+    "xss_pattern_score",
+    "body_entropy",
+    "body_length",
+    "encoding_anomaly",
+    "method_encoded",
+    "header_count",
+    "has_unusual_method",
+    "user_agent_entropy",
+    "content_type_encoded",
+    "ip_req_rate_1m",
+    "ip_req_rate_5m",
+    "ip_error_rate_1m",
+    "uri_extension_len",
+    "body_uri_ratio"
+  ],
+  "feature_dim": 20,
+  "n_samples": 3500,
+  "trained_at": 1779891401,
+  "elapsed_sec": 0.29,
+  "metrics": {
+    "isolation_forest": {
+      "precision": 0.47368421052631576,
+      "recall": 0.045,
+      "f1": 0.0821917808219178,
+      "fpr": 0.02
+    },
+    "xgboost": {
+      "precision": 0.995,
+      "recall": 0.995,
+      "f1": 0.995,
+      "auc": 0.9999899999999999
+    },
+    "ensemble": {
+      "precision": 1.0,
+      "recall": 0.995,
+      "f1": 0.9974937343358395,
+      "auc": 0.9999999999999999
+    }
+  }
+}

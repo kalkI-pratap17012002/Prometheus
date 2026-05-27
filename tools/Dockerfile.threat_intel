@@ -1,0 +1,16 @@
+# syntax=docker/dockerfile:1.6
+FROM python:3.11-alpine
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+RUN apk add --no-cache --virtual .build-deps build-base gcc musl-dev linux-headers \
+ && pip install --no-cache-dir asyncpg==0.29.0 httpx==0.27.2 \
+ && apk del .build-deps
+
+COPY threat_intel.py /app/threat_intel.py
+
+CMD ["python", "/app/threat_intel.py"]

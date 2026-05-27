@@ -1,0 +1,8 @@
+{
+  "raw_threshold": 0.629084226955419,
+  "normalized_threshold": 0.8346601870338674,
+  "score_min": 0.3808207097947327,
+  "score_max": 0.6782633349700637,
+  "target_fpr": 0.02,
+  "achieved_fpr": 0.02
+}

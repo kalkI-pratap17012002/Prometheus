@@ -1,0 +1,3 @@
+Drop a real TLS cert + key here to override the self-signed pair baked into
+the nginx image. This directory is bind-mounted to /etc/ssl/custom inside
+the container — see README "TLS / HTTPS" for how to wire it up.

@@ -1,0 +1,222 @@
+name: ml-waf
+
+networks:
+  waf_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  influxdb_data:
+  influxdb_config:
+  grafana_data:
+
+services:
+  nginx:
+    build:
+      context: ./nginx
+    image: ml-waf/nginx:dev
+    container_name: waf-nginx
+    depends_on:
+      redis:
+        condition: service_healthy
+      ml_engine:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_STREAM: ${REDIS_STREAM:-waf:requests}
+      ML_ENGINE_URL: http://ml_engine:8000
+    volumes:
+      # Drop a real waf.crt / waf.key in ./nginx/ssl to override the
+      # self-signed cert baked in at image build (see README).
+      - ./nginx/ssl:/etc/ssl/custom
+    extra_hosts:
+      # Lets the upstream block reach a backend on the docker host
+      - "host.docker.internal:host-gateway"
+    networks:
+      - waf_net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/_waf/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  ml_engine:
+    build:
+      context: ./ml_engine
+    image: ml-waf/ml-engine:dev
+    container_name: waf-ml-engine
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8000"
+    ports:
+      # localhost-only — exposed so tools/test_decision_engine.py and other
+      # host-side admin scripts can hit /ip-rules, /ip-check, /log-request.
+      - "127.0.0.1:8000:8000"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_STREAM: ${REDIS_STREAM:-waf:requests}
+      WAF_LOG_THRESHOLD: ${WAF_LOG_THRESHOLD:-0.4}
+      WAF_BLOCK_THRESHOLD: ${WAF_BLOCK_THRESHOLD:-0.8}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUX_TOKEN}
+      INFLUX_ORG: ${INFLUX_ORG}
+      INFLUX_BUCKET: ${INFLUX_BUCKET}
+    networks:
+      - waf_net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  threat_intel:
+    build:
+      context: ./tools
+      dockerfile: Dockerfile.threat_intel
+    image: ml-waf/threat-intel:dev
+    container_name: waf-threat-intel
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Optional — without the key the AbuseIPDB pull is skipped and only
+      # the Emerging Threats feed is synced.
+      ABUSEIPDB_API_KEY: ${ABUSEIPDB_API_KEY:-}
+      THREAT_INTEL_INTERVAL_S: ${THREAT_INTEL_INTERVAL_S:-21600}
+      THREAT_INTEL_EXPIRY_H: ${THREAT_INTEL_EXPIRY_H:-24}
+    networks:
+      - waf_net
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: waf-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    expose:
+      - "6379"
+    # Bind to 127.0.0.1 only so host-side tools (tools/test_logger.py)
+    # can XREAD without exposing redis to the LAN.
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks:
+      - waf_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: waf-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+      - ./postgres/migrations/002_phase5.sql:/docker-entrypoint-initdb.d/002_phase5.sql:ro
+    expose:
+      - "5432"
+    networks:
+      - waf_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: waf-influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUX_USERNAME}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUX_ORG}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUX_BUCKET}
+      DOCKER_INFLUXDB_INIT_RETENTION: ${INFLUX_RETENTION:-4w}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN}
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
+    ports:
+      - "8086:8086"
+    networks:
+      - waf_net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8086/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana-oss:11.2.0
+    container_name: waf-grafana
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    networks:
+      - waf_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./dashboard
+    image: ml-waf/dashboard:dev
+    container_name: waf-dashboard
+    ports:
+      - "3000:3000"
+    networks:
+      - waf_net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped

@@ -1,0 +1,22 @@
+{
+  "body_length": 0.2660749554634094,
+  "uri_special_char_ratio": 0.19378270208835602,
+  "header_count": 0.1155424416065216,
+  "body_uri_ratio": 0.09221214801073074,
+  "method_encoded": 0.07742734253406525,
+  "sql_keyword_score": 0.073611781001091,
+  "xss_pattern_score": 0.06119813397526741,
+  "uri_depth": 0.03555217385292053,
+  "uri_length": 0.03280727192759514,
+  "body_entropy": 0.025365395471453667,
+  "uri_entropy": 0.011713437736034393,
+  "uri_extension_encoded": 0.010288736782968044,
+  "uri_extension_len": 0.002966596744954586,
+  "user_agent_entropy": 0.0014568144688382745,
+  "encoding_anomaly": 0.0,
+  "has_unusual_method": 0.0,
+  "content_type_encoded": 0.0,
+  "ip_req_rate_1m": 0.0,
+  "ip_req_rate_5m": 0.0,
+  "ip_error_rate_1m": 0.0
+}
