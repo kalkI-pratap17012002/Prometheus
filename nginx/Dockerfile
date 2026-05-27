@@ -40,7 +40,8 @@ RUN cd /tmp \
 
 # Build ModSecurity-nginx connector against OpenResty's bundled nginx source
 RUN cd /tmp \
- && NGX_VERSION=$(/usr/local/openresty/nginx/sbin/nginx -v 2>&1 | sed 's/^.*nginx\///') \
+ && NGX_VERSION=$(/usr/local/openresty/nginx/sbin/nginx -v 2>&1 | sed 's|^.*nginx/||') \
+ && [ -n "$NGX_VERSION" ] || (echo "Failed to extract nginx version" && exit 1) \
  && curl -fsSL "http://nginx.org/download/nginx-${NGX_VERSION}.tar.gz" -o nginx.tar.gz \
  && tar -xzf nginx.tar.gz \
  && git clone --depth 1 --branch ${MODSEC_NGINX_VERSION} https://github.com/owasp-modsecurity/ModSecurity-nginx.git \
