@@ -158,8 +158,9 @@ local function run()
     if ipinfo then
         if ipinfo.action == "BLOCK" then
             -- fire-and-forget log; the actual ML call is skipped
-            -- Capture cjson in closure to avoid nil reference in timer
-            local json_encoder = cjson
+            -- Capture all needed functions and variables in closure
+            local encoder = cjson
+            local a_log = async_log
             ngx.timer.at(0, function()
                 local payload = {
                     client_ip          = ip,
@@ -174,7 +175,7 @@ local function run()
                     has_attack_pattern = looks_attacky(uri .. " " .. (body or "")),
                     uri_length         = #uri,
                 }
-                async_log(json_encoder.encode(payload) or "{}")
+                a_log(encoder.encode(payload) or "{}")
             end)
             return respond_blocked(req_hash, "ip_rule:" .. (ipinfo.reason or ""), 0)
         elseif ipinfo.action == "ALLOW" then
@@ -216,8 +217,9 @@ local function run()
     local decision, reason = combine(modsec_score, ml_score_val)
 
     -- (e) async log
-    -- Capture cjson in closure to avoid nil reference in timer
-    local json_encoder = cjson
+    -- Capture all needed functions and variables in closure
+    local encoder = cjson
+    local a_log = async_log
     ngx.timer.at(0, function()
         local payload = {
             client_ip          = ip,
@@ -232,7 +234,7 @@ local function run()
             has_attack_pattern = looks_attacky(uri .. " " .. (body or "")),
             uri_length         = #uri,
         }
-        async_log(json_encoder.encode(payload) or "{}")
+        a_log(encoder.encode(payload) or "{}")
     end)
 
     if decision == "BLOCK" then
