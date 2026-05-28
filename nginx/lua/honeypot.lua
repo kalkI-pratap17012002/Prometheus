@@ -132,8 +132,9 @@ local function run()
 
     -- Fire-and-forget so we don't block the fake response on a slow upstream.
     -- Capture add_block_rule in closure to avoid nil reference in timer
-    local block_rule = add_block_rule
-    ngx.timer.at(0, function() block_rule(ip) end)
+    local block_fn = add_block_rule
+    local captured_ip = ip
+    ngx.timer.at(0, function() block_fn(captured_ip) end)
 
     respond_fake(path)
 end
