@@ -610,7 +610,7 @@ async def create_ip_rule(rule: IpRuleIn) -> IpRuleOut:
             ("ip_cidr", "action", "reason", "created_at", "expires_at")})
 
 
-@app.delete("/ip-rules/{rule_id}", status_code=204)
+@app.delete("/ip-rules/{rule_id}", status_code=204, response_model=None)
 async def delete_ip_rule(rule_id: str) -> None:
     if not STATE.pg_pool:
         raise HTTPException(status_code=503, detail="postgres unavailable")
