@@ -131,7 +131,9 @@ local function run()
     publish_stream(ip, path, method, ua)
 
     -- Fire-and-forget so we don't block the fake response on a slow upstream.
-    ngx.timer.at(0, function() add_block_rule(ip) end)
+    -- Capture add_block_rule in closure to avoid nil reference in timer
+    local block_rule = add_block_rule
+    ngx.timer.at(0, function() block_rule(ip) end)
 
     respond_fake(path)
 end
