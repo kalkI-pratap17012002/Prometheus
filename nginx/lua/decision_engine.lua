@@ -16,9 +16,9 @@ local http       = require "util_http"
 local ML_HOST     = os.getenv("ML_ENGINE_HOST") or "ml_engine"
 local ML_PORT     = tonumber(os.getenv("ML_ENGINE_PORT") or "8000")
 local BODY_LIMIT  = 65536
-local ML_TIMEOUT  = 80   -- ml /score budget
-local IP_TIMEOUT  = 40   -- ip-check is cached, should be fast
-local LOG_TIMEOUT = 40   -- log-request returns immediately on FastAPI side
+local ML_TIMEOUT  = 400  -- ml /score budget
+local IP_TIMEOUT  = 200  -- ip-check is cached, should be fast
+local LOG_TIMEOUT = 200  -- log-request returns immediately on FastAPI side
 
 local log  = ngx.log
 local WARN = ngx.WARN

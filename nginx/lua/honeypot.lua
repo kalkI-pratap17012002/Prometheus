@@ -33,7 +33,7 @@ end
 
 local function publish_stream(ip, path, method, ua)
     local r = redis:new()
-    r:set_timeouts(50, 50, 50)
+    r:set_timeouts(200, 200, 200)
     local ok, err = r:connect(REDIS_HOST, REDIS_PORT)
     if not ok then
         log(WARN, "honeypot: redis connect failed: ", err)
@@ -59,7 +59,7 @@ local function add_block_rule(ip)
         reason           = "honeypot",
         expires_in_hours = 24,
     }) or "{}"
-    local code, body = http.post_json(ML_HOST, ML_PORT, "/ip-rules", payload, 100)
+    local code, body = http.post_json(ML_HOST, ML_PORT, "/ip-rules", payload, 500)
     if code ~= 201 and code ~= 200 then
         log(WARN, "honeypot: /ip-rules add failed (", tostring(code), "): ", tostring(body))
     end
