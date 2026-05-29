@@ -66,6 +66,13 @@ RUN apk del git build-base linux-headers autoconf automake libtool make gcc g++ 
             zlib-dev openssl-dev curl-dev libxml2-dev yajl-dev lmdb-dev geoip-dev libmaxminddb-dev \
  && rm -rf /var/cache/apk/* /tmp/*
 
+# musl's default search path does not include /usr/local/lib — libmodsecurity
+# and the custom PCRE1 build both install there, so the dynamic linker must
+# be told about it or load_module will fail at runtime.
+RUN echo "/usr/local/lib" >> /etc/ld-musl-$(uname -m).path \
+ && echo "/lib" >> /etc/ld-musl-$(uname -m).path \
+ && echo "/usr/lib" >> /etc/ld-musl-$(uname -m).path
+
 # Project config
 COPY modsec/modsecurity.conf         /etc/modsecurity/modsecurity.conf
 COPY modsec/modsec_custom_rules.conf /etc/modsecurity/modsec_custom_rules.conf
@@ -81,6 +88,10 @@ RUN mkdir -p /var/log/modsec /var/log/nginx \
 RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
         -keyout /etc/ssl/waf.key -out /etc/ssl/waf.crt \
         -subj "/CN=waf.local/O=ML-WAF/C=IN"
+
+# Validate config at build time so module-load or syntax errors fail the build,
+# not the container at runtime.
+RUN /usr/local/openresty/bin/openresty -t
 
 EXPOSE 80 443
 
